@@ -3,6 +3,11 @@
   "displayName": "commander",
   "description": "Add commands to your workspace and run them from the gui",
   "version": "0.0.1",
+  "publisher": "mohammed-almassri",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mohammed-almassri/commander"
+  },
   "engines": {
     "vscode": "^1.91.0"
   },
@@ -12,10 +17,81 @@
   "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
+    "configuration": {
+      "scope": "application",
+      "type": "object",
+      "properties": {
+        "commander.commands": {
+          "type": "array",
+          "default": [],
+          "description": "User-defined commands for the Commander extension.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "label": {
+                "type": "string",
+                "description": "The label of the command."
+              },
+              "command": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "description": "A single command to execute."
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "An array of commands to execute sequentially."
+                  }
+                ],
+                "description": "The command(s) to be executed."
+              },
+              "split": {
+                "type": "boolean",
+                "default": false,
+                "description": "If true, commands will run in parallel in split terminals."
+              },
+              "reuseTerminal": {
+                "type": "boolean",
+                "default": true,
+                "description": "If false, every call to the command will open a new terminal."
+              }
+            },
+            "required": [
+              "label",
+              "command"
+            ]
+          }
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "commanderViewContainer",
+          "title": "Commander",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "commanderViewContainer": [
+        {
+          "id": "commanderView",
+          "name": "Commands"
+        }
+      ]
+    },
     "commands": [
       {
-        "command": "commander.helloWorld",
-        "title": "Hello World"
+        "command": "commander.refresh",
+        "title": "Refresh Commands"
+      },
+      {
+        "command": "commander.runCommand",
+        "title": "Run Command"
       }
     ]
   },
