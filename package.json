@@ -93,7 +93,8 @@
       "commanderViewContainer": [
         {
           "id": "commanderView",
-          "name": "Commands"
+          "name": "Commands",
+          "icon": "media/icon.svg"
         }
       ]
     },
