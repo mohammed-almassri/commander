@@ -49,7 +49,6 @@ To configure your commands, add them to the global settings (`settings.json`). E
     {
       "label": "Run Multiple Commands",
       "command": ["echo First Command", "echo Second Command"],
-      "reuseTerminal": true,
     },
     {
       "label": "Run Commands in Split Terminals",
