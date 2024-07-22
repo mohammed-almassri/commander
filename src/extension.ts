@@ -1,44 +1,63 @@
 import * as vscode from "vscode";
+import defaultRestrictedPatterns from "./restrictedPatterns";
+
+interface CommanderCommand {
+  command: string | string[];
+  label: string;
+  split: boolean;
+  reuseTerminal: boolean;
+  overrideSecurity: boolean;
+}
 
 export function activate(context: vscode.ExtensionContext) {
+ 
+  const config = vscode.workspace.getConfiguration("commander");
   const commanderProvider = new CommanderProvider();
   vscode.window.registerTreeDataProvider("commanderView", commanderProvider);
 
-  vscode.commands.registerCommand("commander.refresh", () =>
-    commanderProvider.refresh()
-  );
+  vscode.commands.registerCommand("commander.refresh", () => {
+    commanderProvider.refresh();
+  });
   vscode.commands.registerCommand(
     "commander.runCommand",
     (node: CommandNode) => {
-      if (node.split) {
-        runCommandsInSplitTerminals(node.command.arguments![1] as string[]);
-      } else {
-        const terminal = vscode.window.createTerminal("Commander");
-        terminal.show();
-        if (Array.isArray(node.command)) {
-          for (const cmd of node.command) {
-            terminal.sendText(cmd);
-          }
-        } else {
-          if (validateCommand(node.command.arguments![1])) {
-            terminal.sendText(node.command.arguments![1] as string);
-          } else {
-            vscode.window.showErrorMessage(
-              "Command not allowed for security reasons."
-            );
-          }
-        }
-      }
+      const c = node.commanderCommand;
+      callCommand(c);
     }
   );
   vscode.workspace.onDidChangeConfiguration((event) => {
-    if (event.affectsConfiguration("commander.commands")) {
+    if (
+      event.affectsConfiguration("commander.commands") ||
+      event.affectsConfiguration("commander.restrictedPatterns")
+    ) {
       commanderProvider.refresh();
     }
   });
 }
 
-async function runCommandsInSplitTerminals(commands: string | string[]) {
+function callCommand(c: CommanderCommand) {
+  if (c.split) {
+    runCommandsInSplitTerminals(c.command as string[], c.overrideSecurity);
+  } else {
+    if (Array.isArray(c.command)) {
+      for (const cmd of c.command) {
+        runCommandInTerminal(cmd, { name: c.label }, true, c.overrideSecurity);
+      }
+    } else {
+      runCommandInTerminal(
+        c.command as string,
+        { name: c.label },
+        c.reuseTerminal,
+        c.overrideSecurity
+      );
+    }
+  }
+}
+
+async function runCommandsInSplitTerminals(
+  commands: string | string[],
+  overrideSecurity: boolean
+) {
   if (typeof commands === "string") {
     commands = [commands];
   }
@@ -53,43 +72,58 @@ async function runCommandsInSplitTerminals(commands: string | string[]) {
     if (parentTerminal) {
       terminalOptions.location = { parentTerminal: parentTerminal };
     }
-
-    const terminal = vscode.window.createTerminal(terminalOptions);
-    terminal.show();
-    if (validateCommand(command)) {
-      terminal.sendText(command);
-    } else {
-      vscode.window.showErrorMessage(
-        "Command not allowed for security reasons."
-      );
-    }
-
+    const terminal = runCommandInTerminal(
+      command,
+      terminalOptions,
+      false,
+      overrideSecurity
+    );
     if (!parentTerminal) {
       parentTerminal = terminal;
     }
   }
 }
 
-function validateCommand(command: string): boolean {
-  const restrictedPatterns = [
-    /rm\s+-rf\s+\//,
-    /shutdown\s+/,
-    /reboot\s+/,
-    /dd\s+if=\/dev\/.*/,
-    /mkfs\s+/,
-    /mkswap\s+/,
-    /init\s+/,
-    /poweroff\s+/,
-    /halt\s+/,
-    /swapoff\s+/,
-    /swapon\s+/,
-    /umount\s+/,
-    /fsck\s+/,
-  ];
-
-  return !restrictedPatterns.some((pattern) => pattern.test(command));
+function runCommandInTerminal(
+  commandString: string,
+  terminalOptions: vscode.TerminalOptions = { name: "Commander" },
+  reuseTerminal = true,
+  overrideSecurity = false
+): vscode.Terminal | undefined {
+  let terminal: vscode.Terminal;
+  if (reuseTerminal) {
+    terminal =
+      vscode.window.activeTerminal ||
+      vscode.window.createTerminal(terminalOptions);
+  } else {
+    terminal = vscode.window.createTerminal(terminalOptions);
+  }
+  terminal.show();
+  const validationResult = validateCommand(commandString);
+  if (overrideSecurity || validationResult === true) {
+    terminal.sendText(commandString);
+    return terminal;
+  } else {
+    vscode.window.showErrorMessage(
+      `Command not allowed since it contains restricted pattern: ${validationResult}`
+    );
+  }
 }
 
+function validateCommand(commandString: string): string | true {
+  const config = vscode.workspace.getConfiguration("commander");
+  const restrictedPatterns = config.get<RegExp[]>("restrictedPatterns", []);
+  restrictedPatterns.push(...defaultRestrictedPatterns);
+  for (const pattern of restrictedPatterns) {
+    const cmds = commandString.split(/[|&]/).map((c) => c.trim());
+    for (const cmd of cmds) {
+      if (new RegExp(pattern).test(cmd)) {
+        return `${pattern}`;
+      }
+    }
+  }
+  return true;
+}
 
 class CommanderProvider implements vscode.TreeDataProvider<CommandNode> {
   private _onDidChangeTreeData: vscode.EventEmitter<CommandNode | undefined> =
@@ -105,18 +139,15 @@ class CommanderProvider implements vscode.TreeDataProvider<CommandNode> {
 
   private getCommandsFromConfig(): CommandNode[] {
     const config = vscode.workspace.getConfiguration("commander");
-    const userCommands = config.get<
-      { label: string; command: string; split: boolean }[]
-    >("commands", []);
+    const userCommands = config.get<CommanderCommand[]>("commands", []);
     return userCommands.map(
       (cmd) =>
         new CommandNode(
-          cmd.label,
           {
             title: cmd.label,
-            command: cmd.command,
+            command: cmd.command as string,
           },
-          cmd.split
+          cmd
         )
     );
   }
@@ -141,16 +172,15 @@ class CommanderProvider implements vscode.TreeDataProvider<CommandNode> {
 
 class CommandNode extends vscode.TreeItem {
   constructor(
-    public readonly label: string,
     public readonly command: vscode.Command,
-    public readonly split: boolean
+    public readonly commanderCommand: CommanderCommand
   ) {
-    super(label, vscode.TreeItemCollapsibleState.None);
+    super(commanderCommand.label, vscode.TreeItemCollapsibleState.None);
     this.tooltip = `${this.label}`;
     this.command = {
       command: "commander.runCommand",
       title: "",
-      arguments: [this, command.command],
+      arguments: [this],
     };
     this.iconPath = new vscode.ThemeIcon("terminal");
   }

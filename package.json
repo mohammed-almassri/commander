@@ -21,6 +21,14 @@
       "scope": "application",
       "type": "object",
       "properties": {
+        "commander.restrictedPatterns":{
+          "type": "array",
+          "default": [],
+          "description": "A list of patterns that are restricted from being executed.",
+          "items": {
+            "type": "string"
+          }
+        },
         "commander.commands": {
           "type": "array",
           "default": [],
@@ -57,6 +65,11 @@
                 "type": "boolean",
                 "default": true,
                 "description": "If false, every call to the command will open a new terminal."
+              },
+              "overrideSecurity": {
+                "type": "boolean",
+                "default": false,
+                "description": "If true, the command will run even if it is in the restricted commands list."
               }
             },
             "required": [

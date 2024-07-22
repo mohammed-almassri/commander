@@ -1,71 +1,74 @@
-# commander README
+# Commander - VSCode Extension
 
-This is the README for your extension "commander". After writing up a brief description, we recommend including the following sections.
+Commander is a Visual Studio Code extension that allows users to execute predefined commands easily through the UI. This extension enhances productivity by providing quick access to frequently used commands.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+- **Run Commands From UI:** Run the commands you always write out in the terminal with a single click.
+- **Split Terminals:** Option to run commands in split terminals for parallel execution.
+- **Security:** Restrict certain command patterns from being executed.
 
-For example if there is an image subfolder under your extension project workspace:
+## Usage
 
-\!\[feature X\]\(images/feature-x.png\)
+1. **Configure your commands:**
+   - Open the settings (`Ctrl+,` or `Cmd+,`).
+   - Search for `commander.commands` or add the configuration below.
+2. **Execute Commands:**
+   - from the Activity Bar, click on the Commander icon.
+   - Click on the big buttons in the Commander panel to run the predefined commands.
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+## Configuration
 
-## Requirements
+To configure your commands, add them to the global settings (`settings.json`). Each command should have the following properties:
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+- `label`: The label of the command (displayed on the button).
+- `command`: The command to execute. This can be a string or an array of strings.
+- `split`: A boolean indicating whether to run the command in a split terminal.
+- `reuseTerminal`: A boolean indicating whether to reuse an existing terminal.
+- `overrideSecurity`: A boolean indicating whether to override security restrictions for this command.
 
-## Extension Settings
+### Example Configuration
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+```json
+{
+  "commander.restrictedPatterns": [
+    "^rm",
+    "^shutdown",
+    "^reboot"
+  ],
+  "commander.commands": [
+    {
+      "label": "List Files",
+      "command": "ls",
+    },
+    {
+      "label": "Show Current Directory",
+      "command": "pwd",
+      "reuseTerminal": true,
+    },
+    {
+      "label": "Run Multiple Commands",
+      "command": ["echo First Command", "echo Second Command"],
+      "reuseTerminal": true,
+    },
+    {
+      "label": "Run Commands in Split Terminals",
+      "command": ["echo Command 1", "echo Command 2"],
+      "split": true,
+    },
+    {
+      "label": "Run Risky Command",
+      "command": "shutdown -h now",  
+      "overrideSecurity": true,
+    }
+  ]
+}
+```
 
-For example:
+## Security
+Since Commander allows users to execute arbitrary commands, it is important to consider security implications. Here are some security features of Commander:
 
-This extension contributes the following settings:
+* Restricted Command Patterns: To mitigate the risk of executing harmful commands, Commander validates each command against a list of restricted patterns. These patterns can be customized in the settings.
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
 
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
----
-
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+* Override Security: For commands that need to bypass security restrictions, you can set overrideSecurity to `true`. Use this feature with caution especially if you know your workspace `settings.json` can be edited by a third party (eg. in a git repository).

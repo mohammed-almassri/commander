@@ -1,0 +1,15 @@
+export default [
+  /rm\s+-rf\s+\//,
+  /shutdown\s+/,
+  /reboot\s+/,
+  /dd\s+if=\/dev\/.*/,
+  /mkfs\s+/,
+  /mkswap\s+/,
+  /init\s+/,
+  /poweroff\s+/,
+  /halt\s+/,
+  /swapoff\s+/,
+  /swapon\s+/,
+  /umount\s+/,
+  /fsck\s+/,
+];
